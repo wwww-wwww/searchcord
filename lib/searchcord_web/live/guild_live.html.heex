@@ -1,0 +1,73 @@
+<Layouts.flash_group flash={@flash} />
+<div style="display: flex; gap: 1em; margin: 1em;">
+  <div style="flex-shrink: 0;">
+    <h2>{@guild.name}</h2>
+    <%= for cat <- @categories |> Enum.sort_by(& &1.position)do %>
+      <div>
+        <div>{cat.name}</div>
+        <div style="margin-left: 1em;">
+          <%= for c <- cat.channels |> Enum.sort_by(& &1.position)do %>
+            <div>
+              <%= if length(c.channels) > 0 do %>
+                <style>
+                  #collapse-<%= c.id %>:not(:checked)+.threads {display: none;}
+                </style>
+              <% end %>
+              <span><.link patch={~p"/#{@guild.id}/#{c.id}"}>{c.name}</.link></span>
+              <span>{@counts[c.id]}</span>
+              <%= if length(c.channels) > 0 do %>
+                <input type="checkbox" id={"collapse-#{c.id}"} />
+                <div class="threads" style="margin-left: 1em;">
+                  <%= for t <- c.channels |> Enum.sort_by(& &1.position) do %>
+                    <div><.link patch={~p"/#{@guild.id}/#{t.id}"}>{t.name}</.link></div>
+                  <% end %>
+                </div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+  <div style="display: flex; flex-direction: column;">
+    <h3>{@channel.name}</h3>
+    <div>{@channel.topic}</div>
+
+    <%= if length(@messages) > 0 do %>
+      <div style="flex: 1;">
+        <style>
+          .avatar {
+              height: 40px;
+              width: 40px;
+              min-width: 40px;
+          }
+        </style>
+        <table class="messages">
+          <%= for m <- @messages do %>
+            <tr>
+              <td>
+                <%= if m.author.avatar != nil do %>
+                  <img
+                    class="avatar"
+                    src={"https://cdn.discordapp.com/avatars/#{m.author.user_id}/#{m.author.avatar}.webp?size=80"}
+                  />
+                <% end %>
+              </td>
+              <td>{m.author.name || m.author.username}</td>
+              <td>{m.content}</td>
+            </tr>
+          <% end %>
+        </table>
+      </div>
+    <% end %>
+
+    <div>
+      <%= for n <- 0..trunc(@count / 500) do %>
+        <div>{n * 500 + 1} - {min(n * 500 + 500, @count)}</div>
+      <% end %>
+    </div>
+    <%= if @oldest != nil do %>
+      <div>{@oldest.id}</div>
+    <% end %>
+  </div>
+</div>

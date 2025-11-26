@@ -1,0 +1,8 @@
+<Layouts.flash_group flash={@flash} />
+<table>
+  <%= for guild <- @guilds do %>
+    <tr>
+      <td><.link href={~p"/#{guild.id}"}>{guild.name}</.link></td>
+    </tr>
+  <% end %>
+</table>

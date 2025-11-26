@@ -1,10 +1,10 @@
 <Layouts.flash_group flash={@flash} />
 <div style="display: flex; gap: 1em; margin: 1em;">
   <div style="flex-shrink: 0;">
-    <h2>{@guild.name}</h2>
+    <h1>{@guild.name}</h1>
     <%= for cat <- @categories |> Enum.sort_by(& &1.position)do %>
       <div>
-        <div>{cat.name}</div>
+        <h3>{cat.name}</h3>
         <div style="margin-left: 1em;">
           <%= for c <- cat.channels |> Enum.sort_by(& &1.position)do %>
             <div>
@@ -30,7 +30,7 @@
     <% end %>
   </div>
   <div style="display: flex; flex-direction: column;">
-    <h3>{@channel.name}</h3>
+    <h2>{@channel.name}</h2>
     <div>{@channel.topic}</div>
 
     <%= if length(@messages) > 0 do %>
@@ -45,6 +45,7 @@
         <table class="messages">
           <%= for m <- @messages do %>
             <tr>
+              <td>{Calendar.strftime(m.created_at, "%y-%m-%d %I:%M:%S")}</td>
               <td>
                 <%= if m.author.avatar != nil do %>
                   <img

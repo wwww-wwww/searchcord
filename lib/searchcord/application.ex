@@ -17,12 +17,10 @@ defmodule Searchcord.Application do
       Searchcord.Repo,
       {DNSCluster, query: Application.get_env(:searchcord, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Searchcord.PubSub},
-      # Start a worker by calling: Searchcord.Worker.start_link(arg)
-      # {Searchcord.Worker, arg},
-      # Start to serve requests, typically the last entry
-      SearchcordWeb.Endpoint,
+      Searchcord.Cache,
       {Nostrum.Api.RatelimiterGroup, bot_options},
-      {Nostrum.Api.Ratelimiter, bot_options}
+      {Nostrum.Api.Ratelimiter, bot_options},
+      SearchcordWeb.Endpoint
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html

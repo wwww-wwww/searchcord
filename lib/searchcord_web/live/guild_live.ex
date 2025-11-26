@@ -1,7 +1,7 @@
 defmodule SearchcordWeb.GuildLive do
   use SearchcordWeb, :live_view
 
-  alias Searchcord.{Guild, User, Message, Channel, Repo}
+  alias Searchcord.{Guild, User, Message, Channel, Repo, Cache}
   import Ecto.Query
 
   def mount(%{"guild" => guild_id, "channel" => channel_id}, _session, socket) do
@@ -13,13 +13,9 @@ defmodule SearchcordWeb.GuildLive do
       |> Repo.preload(channels: [:channels])
 
     counts =
-      guild.channels
-      |> Enum.map(fn channel ->
-        {channel.id,
-         Message
-         |> where([m], m.channel_id == ^channel.id)
-         |> Repo.aggregate(:count)}
-      end)
+      Cache.get(guild.id)
+      |> Map.get(:channels)
+      |> Enum.map(&{elem(&1, 0), elem(&1, 1).count})
       |> Map.new()
 
     socket =
@@ -53,32 +49,26 @@ defmodule SearchcordWeb.GuildLive do
       |> Enum.filter(&(&1.id == channel_id))
       |> Enum.at(0)
 
-    query =
-      Message
-      |> where([m], m.channel_id == ^channel_id)
-      |> order_by(desc: :created_at)
-      |> preload([:author])
+    channel_cache = Cache.get(guild.id) |> Map.get(:channels) |> Map.get(channel_id)
+    count = channel_cache |> Map.get(:count)
+    oldest = channel_cache |> Map.get(:oldests)
 
-    count = Repo.aggregate(query, :count)
-
-    oldest =
-      Message
-      |> where([m], m.channel_id == ^channel_id)
-      |> order_by(asc: :created_at)
-      |> limit(1)
-      |> Repo.one()
+    offset_count = trunc(count / 500) * 500
 
     messages =
-      query
-      |> limit(10)
+      Message
+      |> where([m], m.channel_id == ^channel_id)
+      |> order_by(asc: :id)
+      |> preload([:author])
+      |> offset(^offset_count)
+      |> limit(500)
       |> Repo.all()
-      |> Enum.sort_by(& &1.id, :asc)
 
     socket =
       socket
       |> assign(page_title: "#{guild.name} - #{channel.name}")
       |> assign(channel: channel)
-      |> assign(messages: [])
+      |> assign(messages: messages)
       |> assign(count: count)
       |> assign(oldest: oldest)
 

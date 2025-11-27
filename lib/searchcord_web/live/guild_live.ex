@@ -29,6 +29,8 @@ defmodule SearchcordWeb.GuildLive do
       |> assign(channel: nil)
       |> assign(search: nil)
 
+    Phoenix.PubSub.subscribe(Searchcord.PubSub, "update_guild:#{guild.id}")
+
     {:ok, socket}
   end
 
@@ -173,7 +175,7 @@ defmodule SearchcordWeb.GuildLive do
      )}
   end
 
-  def handle_params(%{"guild" => guild_id}, _uri, socket) do
+  def handle_params(%{"guild" => _}, _uri, socket) do
     socket =
       socket
       |> assign(channel: nil)
@@ -184,5 +186,34 @@ defmodule SearchcordWeb.GuildLive do
 
   def handle_event("search", %{"query" => query}, socket) do
     {:noreply, push_patch(socket, to: ~p"/#{socket.assigns.guild.id}/search/#{query}")}
+  end
+
+  def handle_event("update-channels", _, socket) do
+    if Searchcord.UpdateQueue.get().items |> length() == 0 do
+      Searchcord.UpdateQueue.push(fn ->
+        Searchcord.get_channels(socket.assigns.guild.id)
+      end)
+    end
+
+    {:noreply, socket}
+  end
+
+  def handle_event("update-messages", _, socket) do
+    if Searchcord.UpdateQueue.get().items |> length() == 0 do
+      socket.assigns.guild
+      |> Repo.preload(:channels)
+      |> Map.get(:channels)
+      |> Enum.sort_by(& &1.position)
+      |> Enum.map(fn channel ->
+        Searchcord.UpdateQueue.push({&Searchcord.update_channel_messages/1, [channel.id]})
+      end)
+    end
+
+    {:noreply, socket}
+  end
+
+  def handle_info({:counts, counts}, socket) do
+    socket = socket |> assign(counts: counts)
+    {:noreply, socket}
   end
 end

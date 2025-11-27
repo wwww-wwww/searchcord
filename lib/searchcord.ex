@@ -1,5 +1,5 @@
 defmodule Searchcord do
-  alias Searchcord.{Guild, User, Message, Channel, Repo}
+  alias Searchcord.{Guild, User, Message, Channel, Repo, Cache}
   import Ecto.Query
 
   def api(fun), do: Nostrum.Bot.with_bot(Searchcord, fun)
@@ -102,6 +102,8 @@ defmodule Searchcord do
       end)
       |> Enum.sum()
 
+    Cache.update_channel(channel_id)
+
     if after_date != nil and
          Enum.all?(messages, &(DateTime.compare(&1.timestamp, after_date) == :lt)) do
       {count, :finish}
@@ -123,34 +125,44 @@ defmodule Searchcord do
     do: download_all_messages(guild_id, channel_id, after_date, {}, 0)
 
   def get_guild(guild_id) do
-    {:ok, guild} = api(fn -> Nostrum.Api.Guild.get(guild_id) end)
+    case api(fn -> Nostrum.Api.Guild.get(guild_id) end) do
+      {:ok, guild} ->
+        roles =
+          guild.roles
+          |> Map.values()
+          |> Enum.map(&{&1.id, &1 |> Map.from_struct() |> Jason.encode!()})
+          |> Map.new()
 
-    roles =
-      guild.roles
-      |> Map.values()
-      |> Enum.map(&{&1.id, &1 |> Map.from_struct() |> Jason.encode!()})
-      |> Map.new()
+        emojis =
+          guild.emojis
+          |> Enum.map(&{&1.id, &1 |> Map.from_struct() |> Jason.encode!()})
+          |> Map.new()
 
-    emojis =
-      guild.emojis
-      |> Enum.map(&{&1.id, &1 |> Map.from_struct() |> Jason.encode!()})
-      |> Map.new()
+        stickers =
+          guild.stickers
+          |> Enum.map(&{&1.id, &1 |> Map.from_struct() |> Jason.encode!()})
+          |> Map.new()
 
-    stickers =
-      guild.stickers
-      |> Enum.map(&{&1.id, &1 |> Map.from_struct() |> Jason.encode!()})
-      |> Map.new()
+        {:ok, guild} =
+          %Guild{
+            id: guild.id,
+            name: guild.name,
+            icon: guild.icon,
+            description: guild.description,
+            roles: roles,
+            emojis: emojis,
+            stickers: stickers
+          }
+          |> Repo.insert()
+          |> IO.inspect()
 
-    %Guild{
-      id: guild.id,
-      name: guild.name,
-      icon: guild.icon,
-      description: guild.description,
-      roles: roles,
-      emojis: emojis,
-      stickers: stickers
-    }
-    |> Repo.insert()
+        Cache.update_guild(guild.id)
+
+        guild
+
+      err ->
+        err
+    end
   end
 
   def download_all(after_date) do
@@ -248,28 +260,50 @@ defmodule Searchcord do
     end)
   end
 
-  def update_all() do
-    Repo.all(Guild)
-    |> Enum.each(fn guild ->
-      get_channels(guild.id)
-    end)
+  def update_channel_messages(channel_id) do
+    channel = Repo.get(Channel, channel_id)
 
-    Repo.all(Channel)
-    |> Enum.filter(&(&1.type != 4))
-    |> Enum.map(fn channel ->
+    count =
       Message
-      |> where([m], m.channel_id == ^channel.id)
+      |> where([m], m.channel_id == ^channel_id)
       |> order_by(desc: :created_at)
       |> limit(1)
       |> Repo.one()
       |> case do
         nil ->
-          download_all_messages(channel.guild_id, channel.id, nil)
+          download_all_messages(channel.guild_id, channel_id, nil)
 
         newest ->
-          download_all_messages(channel.guild_id, channel.id, newest.created_at)
+          download_all_messages(channel.guild_id, channel_id, newest.created_at)
       end
+
+    count
+  end
+
+  def update_guild_messages(guild) do
+    guild
+    |> Repo.preload(:channels)
+    |> Map.get(:channels)
+    |> Enum.map(&update_channel_messages(&1))
+    |> Enum.sum()
+  end
+
+  def update_all() do
+    Repo.all(Guild)
+    |> Enum.each(fn guild ->
+      get_channels(guild.id)
+      Cache.update_guild(guild.id)
+    end)
+
+    Repo.all(Channel)
+    |> Enum.filter(&(&1.type != 4))
+    |> Enum.map(fn channel ->
+      update_channel_messages(channel)
     end)
     |> Enum.sum()
+  end
+
+  def delete_guild() do
+    Repo.one(Guild) |> Repo.delete()
   end
 end

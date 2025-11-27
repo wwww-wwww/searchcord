@@ -20,6 +20,8 @@ defmodule Searchcord.Application do
       Searchcord.Cache,
       {Nostrum.Api.RatelimiterGroup, bot_options},
       {Nostrum.Api.Ratelimiter, bot_options},
+      Searchcord.UpdateQueue,
+      Searchcord.Updater,
       SearchcordWeb.Endpoint
     ]
 

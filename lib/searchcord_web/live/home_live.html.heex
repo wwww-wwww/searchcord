@@ -6,3 +6,14 @@
     </tr>
   <% end %>
 </table>
+
+<form id="add_guild" phx-submit="add_guild">
+  <input type="text" name="guild_id" />
+  <button>Add guild</button>
+</form>
+
+<div>
+<%= for item <- @queue do %>
+<div>{inspect(item)}</div>
+<% end %>
+</div>

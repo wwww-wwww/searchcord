@@ -12,6 +12,10 @@
     <div>
       <h1><.link patch={~p"/#{@guild.id}"}>{@guild.name}</.link></h1>
     </div>
+    <div style="display: flex; flex-direction: column;">
+      <button phx-click="update-channels">Update channels</button>
+      <button phx-click="update-messages">Update messages</button>
+    </div>
     <div style="display: flex; flex-direction: column; gap: 1em">
       <%= for cat <- @categories |> Enum.sort_by(& &1.position)do %>
         <div>

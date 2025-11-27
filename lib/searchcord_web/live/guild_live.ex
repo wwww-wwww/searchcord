@@ -68,6 +68,11 @@ defmodule SearchcordWeb.GuildLive do
 
     count = Repo.aggregate(query, :count)
 
+    channels =
+      Cache.get(guild.id)
+      |> Map.get(:guild)
+      |> Map.get(:channels)
+
     results =
       query
       |> limit(500)
@@ -75,14 +80,10 @@ defmodule SearchcordWeb.GuildLive do
       |> Repo.all()
       |> chunk_by(& &1.channel_id)
       |> Enum.map(fn e ->
-        guild_id = e |> Enum.at(0) |> Map.get(:guild_id)
-
         channel_id = e |> Enum.at(0) |> Map.get(:channel_id)
 
         channel =
-          Cache.get(guild_id)
-          |> Map.get(:guild)
-          |> Map.get(:channels)
+          channels
           |> Enum.filter(&(&1.id == channel_id))
           |> Enum.at(0)
 

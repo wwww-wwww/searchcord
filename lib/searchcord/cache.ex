@@ -46,11 +46,12 @@ defmodule Searchcord.Cache do
 
   def update_guild(guild_id) do
     Agent.update(__MODULE__, fn state ->
-      guild = Repo.get(Guild, guild_id)
+      guild =
+        Repo.get(Guild, guild_id)
+        |> Repo.preload(:channels)
 
       channels =
         guild
-        |> Repo.preload(:channels)
         |> Map.get(:channels)
         |> Enum.map(fn channel ->
           count =

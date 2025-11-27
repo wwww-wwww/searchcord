@@ -1,0 +1,14 @@
+<div>
+  <div>{@count} results, showing {min(@count, 500)}</div>
+  <div>
+    <%= for {{channel, chunks}, n} <- @results |> Enum.with_index do %>
+      <h3>{channel.name}</h3>
+      <.live_component
+        module={Searchcord.MessagesComponent}
+        id={"messages_component-#{n}"}
+        messages={chunks}
+        channel={channel}
+      />
+    <% end %>
+  </div>
+</div>

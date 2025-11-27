@@ -6,7 +6,7 @@ defmodule SearchcordWeb.GuildLive do
 
   @limit 500
 
-  def mount(%{"guild" => guild_id, "channel" => channel_id}, _session, socket) do
+  def mount(%{"guild" => guild_id}, session, socket) do
     guild = Repo.get(Guild, guild_id) |> Repo.preload(:channels)
 
     categories =
@@ -26,26 +26,85 @@ defmodule SearchcordWeb.GuildLive do
       |> assign(categories: categories)
       |> assign(counts: counts)
       |> assign(limit: @limit)
-
-    {:noreply, socket} = handle_params(%{"channel" => channel_id}, "", socket)
+      |> assign(channel: nil)
+      |> assign(search: nil)
 
     {:ok, socket}
   end
 
-  def mount(%{"guild" => guild_id}, session, socket) do
-    channel =
-      Repo.get(Guild, guild_id)
-      |> Repo.preload(:channels)
-      |> Map.get(:channels)
-      |> Enum.filter(&(&1.type == 0))
-      |> Enum.sort_by(& &1.position)
-      |> Enum.at(0)
+  def chunk_by(enumerable, fun) do
+    {chunks, chunk, _} =
+      Enum.reduce_while(
+        enumerable,
+        {[], [], nil},
+        fn m, {acc, chunk, var} ->
+          mvar = fun.(m)
 
-    {:ok, push_navigate(socket, to: "/#{guild_id}/#{channel.id}", replace: true)}
+          {acc, chunk} =
+            if mvar == var do
+              {acc, chunk ++ [m]}
+            else
+              {acc ++ [chunk], [m]}
+            end
+
+          {:cont, {acc, chunk, mvar}}
+        end
+      )
+
+    (chunks ++ [chunk])
+    |> Enum.filter(&(length(&1) > 0))
   end
 
-  def handle_params(%{"channel" => channel_id}, _uri, %{assigns: %{guild: guild}} = socket) do
-    {channel_id, ""} = Integer.parse(channel_id)
+  def handle_params(%{"query" => query}, _uri, socket) do
+    guild = socket.assigns.guild
+
+    query =
+      Message
+      |> where([m], m.guild_id == ^guild.id)
+      |> where([m], ilike(m.content, ^"%#{query}%"))
+      |> order_by(desc: :id)
+
+    count = Repo.aggregate(query, :count)
+
+    results =
+      query
+      |> limit(500)
+      |> preload([:author])
+      |> Repo.all()
+      |> chunk_by(& &1.channel_id)
+      |> Enum.map(fn e ->
+        guild_id = e |> Enum.at(0) |> Map.get(:guild_id)
+
+        channel_id = e |> Enum.at(0) |> Map.get(:channel_id)
+
+        channel =
+          Cache.get(guild_id)
+          |> Map.get(:guild)
+          |> Map.get(:channels)
+          |> Enum.filter(&(&1.id == channel_id))
+          |> Enum.at(0)
+
+        {channel, chunk_by(e, & &1.author_id)}
+      end)
+
+    search = %{count: count, results: results}
+
+    socket =
+      socket
+      |> assign(search: search)
+
+    {:noreply, socket}
+  end
+
+  def handle_params(%{"channel" => channel_id, "offset" => offset}, _uri, socket) do
+    {channel_id, ""} =
+      if is_number(channel_id), do: {channel_id, ""}, else: Integer.parse(channel_id)
+
+    {offset, ""} = if is_number(offset), do: {offset, ""}, else: Integer.parse(offset)
+
+    offset = offset - 1
+
+    guild = socket.assigns.guild
 
     channel =
       guild.channels
@@ -56,33 +115,74 @@ defmodule SearchcordWeb.GuildLive do
     count = channel_cache |> Map.get(:count)
     oldest = channel_cache |> Map.get(:oldest)
 
-    offset_count = trunc(count / @limit) * @limit
-
     messages =
       Message
       |> where([m], m.channel_id == ^channel_id)
       |> order_by(asc: :id)
-      |> preload([:author])
-      |> offset(^offset_count)
+      |> offset(^offset)
       |> limit(@limit)
+      |> preload([:author])
       |> Repo.all()
+      |> chunk_by(& &1.author_id)
+
+    channel = %{channel: channel, messages: messages, count: count, oldest: oldest}
 
     socket =
       socket
-      |> assign(page_title: "#{guild.name} - #{channel.name}")
+      |> assign(page_title: "#{guild.name} - #{channel.channel.name}")
       |> assign(channel: channel)
-      |> assign(messages: messages)
-      |> assign(count: count)
-      |> assign(oldest: oldest)
+      |> assign(search: nil)
 
     {:noreply, socket}
   end
 
-  def handle_params(%{"channel" => channel_id}, uri, socket) do
-    handle_params(%{"channel" => channel_id, "before" => nil}, uri, socket)
+  def handle_params(%{"channel" => channel_id}, uri, %{assigns: %{guild: guild}} = socket) do
+    {channel_id, ""} = Integer.parse(channel_id)
+
+    count =
+      Cache.get(guild.id)
+      |> Map.get(:channels)
+      |> Map.get(channel_id)
+      |> Map.get(:count)
+
+    offset = trunc(count / @limit) * @limit + 1
+
+    handle_params(%{"channel" => channel_id, "offset" => offset}, uri, socket)
+  end
+
+  def handle_params(%{"message" => message_id, "guild" => guild_id}, _uri, socket) do
+    {message_id, ""} = Integer.parse(message_id)
+    message = Repo.get(Message, message_id)
+
+    n =
+      Message
+      |> where([m], m.channel_id == ^message.channel_id)
+      |> order_by(asc: :id)
+      |> Repo.all()
+      |> Enum.with_index()
+      |> Enum.filter(&(elem(&1, 0).id == message_id))
+      |> Enum.at(0)
+      |> elem(1)
+      |> Kernel./(@limit)
+      |> trunc()
+      |> Kernel.*(@limit)
+
+    {:noreply,
+     push_navigate(socket,
+       to: ~p"/#{guild_id}/#{message.channel_id}/#{n}" <> "\#message_#{message_id}"
+     )}
   end
 
   def handle_params(%{"guild" => guild_id}, _uri, socket) do
+    socket =
+      socket
+      |> assign(channel: nil)
+      |> assign(search: nil)
+
     {:noreply, socket}
+  end
+
+  def handle_event("search", %{"query" => query}, socket) do
+    {:noreply, push_patch(socket, to: ~p"/#{socket.assigns.guild.id}/search/#{query}")}
   end
 end

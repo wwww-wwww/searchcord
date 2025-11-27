@@ -1,0 +1,22 @@
+<div style="display: flex; flex-direction: column; overflow: auto;">
+  <h2>{@channel.name}</h2>
+  <h3>{@channel.topic}</h3>
+  <div style="display: flex;">
+    <div style="flex-shrink: 0">
+      <div>
+        <%= for n <- 0..trunc(@count / @limit) |> Enum.reverse do %>
+          <div>
+            <.link patch={~p"/#{@channel.guild_id}/#{@channel.id}/#{n * @limit + 1}"}>
+              {n * @limit + 1} - {min(n * @limit + @limit, @count)}
+            </.link>
+          </div>
+        <% end %>
+      </div>
+    </div>
+    <.live_component
+      module={Searchcord.MessagesComponent}
+      id="messages_component"
+      messages={@messages}
+    />
+  </div>
+</div>

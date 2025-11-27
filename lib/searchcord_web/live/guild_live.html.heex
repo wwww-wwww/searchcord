@@ -9,7 +9,9 @@
 </style>
 <div style="display: flex; gap: 0.5em; margin: 0.5em;">
   <div style="flex-shrink: 0; display: flex; flex-direction: column;">
-    <div><h1>{@guild.name}</h1></div>
+    <div>
+      <h1><.link patch={~p"/#{@guild.id}"}>{@guild.name}</.link></h1>
+    </div>
     <div style="display: flex; flex-direction: column; gap: 1em">
       <%= for cat <- @categories |> Enum.sort_by(& &1.position)do %>
         <div>
@@ -25,10 +27,13 @@
                 <span><.link patch={~p"/#{@guild.id}/#{c.id}"}>{c.name}</.link></span>
                 <span>{@counts[c.id]}</span>
                 <%= if length(c.channels) > 0 do %>
-                  <input type="checkbox" id={"collapse-#{c.id}"} />
+                  <input type="checkbox" id={"collapse-#{c.id}"} phx-update="ignore" />
                   <div class="threads" style="margin-left: 1em;">
                     <%= for t <- c.channels |> Enum.sort_by(& &1.position) do %>
-                      <div><.link patch={~p"/#{@guild.id}/#{t.id}"}>{t.name}</.link></div>
+                      <div>
+                        <span><.link patch={~p"/#{@guild.id}/#{t.id}"}>{t.name}</.link></span>
+                        <span>{@counts[t.id]}</span>
+                      </div>
                     <% end %>
                   </div>
                 <% end %>
@@ -39,46 +44,30 @@
       <% end %>
     </div>
   </div>
-  <div style="display: flex; flex-direction: column;">
-    <h2>{@channel.name}</h2>
-    <h3>{@channel.topic}</h3>
-    <div style="display: flex;">
-      <div style="flex-shrink: 0">
-        <div>
-          <%= for n <- 0..trunc(@count / @limit) do %>
-            <div>{n * @limit + 1} - {min(n * @limit + @limit, @count)}</div>
-          <% end %>
-        </div>
-      </div>
-      <div style="flex: 1;">
-        <%= if @oldest != nil do %>
-          <div>oldest message: {@oldest.id}</div>
-        <% end %>
-        <style>
-          .avatar {
-              height: 40px;
-              width: 40px;
-              min-width: 40px;
-          }
-        </style>
-        <table class="messages">
-          <%= for m <- @messages do %>
-            <tr>
-              <td>{Calendar.strftime(m.created_at, "%y-%m-%d %I:%M:%S")}</td>
-              <td>
-                <%= if m.author.avatar != nil do %>
-                  <img
-                    class="avatar"
-                    src={"https://cdn.discordapp.com/avatars/#{m.author.user_id}/#{m.author.avatar}.webp?size=80"}
-                  />
-                <% end %>
-              </td>
-              <td>{m.author.name || m.author.username}</td>
-              <td>{m.content}</td>
-            </tr>
-          <% end %>
-        </table>
-      </div>
+  <%= if @channel == nil do %>
+    <div style="display: flex; flex-direction: column;">
+      <form id="search" phx-submit="search">
+        <input type="text" name="query" />
+        <button>Search</button>
+      </form>
+      <%= if @search != nil do %>
+        <.live_component
+          module={Searchcord.SearchComponent}
+          id="search_component"
+          results={@search.results}
+          count={@search.count}
+        />
+      <% end %>
     </div>
-  </div>
+  <% else %>
+    <.live_component
+      module={Searchcord.ChannelComponent}
+      id="channel_component"
+      channel={@channel.channel}
+      messages={@channel.messages}
+      count={@channel.count}
+      oldest={@channel.oldest}
+      limit={@limit}
+    />
+  <% end %>
 </div>

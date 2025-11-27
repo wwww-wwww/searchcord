@@ -1,0 +1,68 @@
+<div style="flex: 1; overflow: auto;">
+  <% channel = Map.get(assigns, :channel) %>
+  <style>
+    .avatar {
+        height: 40px;
+        width: 40px;
+        min-width: 40px;
+    }
+    .message-chunks {
+        display: block;
+    }
+    .message-chunks tbody, tr {
+        display: block;
+    }
+    .message-chunks td:nth-child(1) {
+      vertical-align: top;
+      width:40px;
+    }
+    .message-chunks .name {
+      font-weight: bold;
+    }
+    .messages td:nth-child(1) {
+      width: 9em;
+    }
+    .messages td:nth-child(2) {
+      word-wrap: anywhere;
+    }
+    .messages tr:target {
+        background-color: yellow;
+    }
+  </style>
+  <table class="message-chunks">
+    <%= for c <- @messages do %>
+      <% m = c |> Enum.at(0) %>
+      <tr>
+        <td>
+          <%= if m.author.avatar != nil do %>
+            <img
+              class="avatar"
+              src={"https://cdn.discordapp.com/avatars/#{m.author.user_id}/#{m.author.avatar}.webp?size=80"}
+            />
+          <% end %>
+        </td>
+        <td>
+          <div class="name">{m.author.name || m.author.username}</div>
+          <div class="messages">
+            <table>
+              <%= for m <- c do %>
+                <tr id={"message_#{m.id}"}>
+                  <td>
+                    <%= if channel != nil do %>
+                      <.link navigate={~p"/#{channel.guild_id}/message/#{m.id}"}>
+                        {Calendar.strftime(m.created_at, "%Y-%m-%d %I:%M:%S")}
+                      </.link>
+                    <% else %>
+                      {Calendar.strftime(m.created_at, "%Y-%m-%d %I:%M:%S")}
+                    <% end %>
+                  </td>
+                  <td>{m.content}</td>
+                </tr>
+              <% end %>
+            </table>
+          </div>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+</div>

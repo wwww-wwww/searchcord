@@ -1,6 +1,6 @@
 defmodule Searchcord do
   alias Searchcord.{Guild, User, Message, Channel, Repo}
-  import Ecto.Query, only: [from: 2]
+  import Ecto.Query
 
   def api(fun), do: Nostrum.Bot.with_bot(Searchcord, fun)
 
@@ -144,7 +144,27 @@ defmodule Searchcord do
 
   def download_all(after_date) do
     Repo.all(Channel)
+    |> Enum.filter(&(&1.type != 4))
     |> Enum.each(&download_all_messages(&1.guild_id, &1.id, after_date))
+  end
+
+  def download_all_old() do
+    Repo.all(Channel)
+    |> Enum.filter(&(&1.type != 4))
+    |> Enum.each(fn channel ->
+      Message
+      |> where([m], m.channel_id == ^channel.id)
+      |> order_by(asc: :created_at)
+      |> limit(1)
+      |> Repo.one()
+      |> case do
+        nil ->
+          download_all_messages(channel.guild_id, channel.id, nil)
+
+        oldest ->
+          download_all_messages(channel.guild_id, channel.id, nil, {:before, oldest.id}, 0)
+      end
+    end)
   end
 
   defp trunc_time(nil), do: nil

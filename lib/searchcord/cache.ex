@@ -7,32 +7,31 @@ defmodule Searchcord.Cache do
   def start_link(_) do
     Agent.start_link(
       fn ->
-        guilds =
-          Repo.all(Guild)
-          |> Repo.preload(:channels)
-          |> Enum.map(fn guild ->
-            channels =
-              guild.channels
-              |> Enum.map(fn channel ->
-                count =
-                  Message
-                  |> where([m], m.channel_id == ^channel.id)
-                  |> Repo.aggregate(:count)
+        Repo.all(Guild)
+        |> Repo.preload(:channels)
+        |> Enum.map(fn guild ->
+          channels =
+            guild.channels
+            |> Enum.map(fn channel ->
+              count =
+                Message
+                |> where([m], m.channel_id == ^channel.id)
+                |> Repo.aggregate(:count)
 
-                oldest =
-                  Message
-                  |> where([m], m.channel_id == ^channel.id)
-                  |> order_by(asc: :created_at)
-                  |> limit(1)
-                  |> Repo.one()
+              oldest =
+                Message
+                |> where([m], m.channel_id == ^channel.id)
+                |> order_by(asc: :created_at)
+                |> limit(1)
+                |> Repo.one()
 
-                {channel.id, %{count: count, oldest: oldest}}
-              end)
-              |> Map.new()
+              {channel.id, %{count: count, oldest: oldest}}
+            end)
+            |> Map.new()
 
-            {guild.id, %{channels: channels}}
-          end)
-          |> Map.new()
+          {guild.id, %{guild: guild, channels: channels}}
+        end)
+        |> Map.new()
       end,
       name: __MODULE__
     )
@@ -40,6 +39,35 @@ defmodule Searchcord.Cache do
 
   def get(guild_id) do
     Agent.get(__MODULE__, &(&1 |> Map.get(guild_id)))
+  end
+
+  def update(channel_id) do
+    Agent.update(__MODULE__, fn state ->
+      channel = Repo.get(Channel, channel_id)
+
+      count =
+        Message
+        |> where([m], m.channel_id == ^channel.id)
+        |> Repo.aggregate(:count)
+
+      oldest =
+        Message
+        |> where([m], m.channel_id == ^channel.id)
+        |> order_by(asc: :created_at)
+        |> limit(1)
+        |> Repo.one()
+
+      guild = Map.get(state, channel.guild_id)
+
+      new_channels =
+        guild
+        |> Map.get(:channels)
+        |> Map.put(channel_id, %{count: count, oldest: oldest})
+
+      new_guild = %{guild | channels: new_channels}
+
+      Map.put(state, channel.guild_id, new_guild)
+    end)
   end
 
   def increment do

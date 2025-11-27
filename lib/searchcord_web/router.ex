@@ -18,9 +18,10 @@ defmodule SearchcordWeb.Router do
     pipe_through :browser
     live "/", HomeLive
     live "/:guild", GuildLive
+    live "/:guild/search/:query", GuildLive
+    live "/:guild/message/:message", GuildLive
     live "/:guild/:channel", GuildLive
-    live "/:guild/:channel/before/:before", GuildLive
-    live "/:guild/:channel/after/:after", GuildLive
+    live "/:guild/:channel/:offset", GuildLive
   end
 
   # Other scopes may use custom stacks.

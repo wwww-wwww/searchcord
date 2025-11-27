@@ -61,47 +61,58 @@ defmodule Searchcord do
           []
       end
 
-    users =
-      messages
-      |> Enum.map(& &1.author)
-      |> insert_users(guild_id)
-
     messages
-    |> Enum.each(fn message ->
-      case Repo.get(Message, message.id) do
-        nil ->
-          %Message{
-            id: message.id,
-            guild_id: guild_id,
-            channel_id: channel_id,
-            author_id: message.author.id
-          }
+    |> Enum.map(& &1.author)
+    |> insert_users(guild_id)
 
-        m ->
-          m
-      end
-      |> Ecto.Changeset.change(%{
-        content: message.content,
-        attachments: Enum.map(message.attachments, &(Map.from_struct(&1) |> Jason.encode!())),
-        embeds: Enum.map(message.embeds, &(Map.from_struct(&1) |> Jason.encode!())),
-        created_at: trunc_time(message.timestamp),
-        edited_at: trunc_time(message.edited_timestamp)
-      })
-      |> Repo.insert_or_update()
-    end)
+    count =
+      messages
+      |> Enum.map(fn message ->
+        case Repo.get(Message, message.id) do
+          nil ->
+            %Message{
+              id: message.id,
+              guild_id: guild_id,
+              channel_id: channel_id,
+              author_id: message.author.id,
+              content: message.content,
+              attachments:
+                Enum.map(message.attachments, &(Map.from_struct(&1) |> Jason.encode!())),
+              embeds: Enum.map(message.embeds, &(Map.from_struct(&1) |> Jason.encode!())),
+              created_at: trunc_time(message.timestamp),
+              edited_at: trunc_time(message.edited_timestamp)
+            }
+            |> Repo.insert()
+
+            1
+
+          m ->
+            m
+            |> Ecto.Changeset.change(%{
+              content: message.content,
+              attachments:
+                Enum.map(message.attachments, &(Map.from_struct(&1) |> Jason.encode!())),
+              embeds: Enum.map(message.embeds, &(Map.from_struct(&1) |> Jason.encode!())),
+              edited_at: trunc_time(message.edited_timestamp)
+            })
+            |> Repo.update()
+
+            0
+        end
+      end)
+      |> Enum.sum()
 
     if after_date != nil and
          Enum.all?(messages, &(DateTime.compare(&1.timestamp, after_date) == :lt)) do
-      {length(messages), :finish}
+      {count, :finish}
     else
-      case messages do
-        [message | _] -> {length(messages), {:before, messages |> Enum.at(-1) |> Map.get(:id)}}
-        [] -> {0, :finish}
-      end
+      if length(messages) > 0,
+        do: {count, {:before, messages |> Enum.at(-1) |> Map.get(:id)}},
+        else: {0, :finish}
     end
   end
 
-  def download_all_messages(guild_id, channel_id, after_date, :finish, count), do: count
+  def download_all_messages(_guild_id, _channel_id, _after_date, :finish, count), do: count
 
   def download_all_messages(guild_id, channel_id, after_date, locator, acc) do
     {count, locator} = get_messages(guild_id, channel_id, locator, after_date)
@@ -221,10 +232,9 @@ defmodule Searchcord do
         }
       )
 
-    users =
-      threads
-      |> Enum.map(&%{id: &1.owner_id})
-      |> insert_users(guild_id)
+    threads
+    |> Enum.map(&%{id: &1.owner_id})
+    |> insert_users(guild_id)
 
     (channels ++ threads)
     |> Enum.sort_by(&(&1.type != 4))
@@ -236,5 +246,30 @@ defmodule Searchcord do
       |> Ecto.Changeset.change(channel)
       |> Repo.insert_or_update()
     end)
+  end
+
+  def update_all() do
+    Repo.all(Guild)
+    |> Enum.each(fn guild ->
+      get_channels(guild.id)
+    end)
+
+    Repo.all(Channel)
+    |> Enum.filter(&(&1.type != 4))
+    |> Enum.map(fn channel ->
+      Message
+      |> where([m], m.channel_id == ^channel.id)
+      |> order_by(desc: :created_at)
+      |> limit(1)
+      |> Repo.one()
+      |> case do
+        nil ->
+          download_all_messages(channel.guild_id, channel.id, nil)
+
+        newest ->
+          download_all_messages(channel.guild_id, channel.id, newest.created_at)
+      end
+    end)
+    |> Enum.sum()
   end
 end

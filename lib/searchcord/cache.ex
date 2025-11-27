@@ -30,7 +30,6 @@ defmodule Searchcord.Cache do
               end)
               |> Map.new()
 
-
             {guild.id, %{channels: channels}}
           end)
           |> Map.new()

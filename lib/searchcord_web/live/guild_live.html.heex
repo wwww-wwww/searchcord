@@ -1,40 +1,59 @@
 <Layouts.flash_group flash={@flash} />
-<div style="display: flex; gap: 1em; margin: 1em;">
-  <div style="flex-shrink: 0;">
-    <h1>{@guild.name}</h1>
-    <%= for cat <- @categories |> Enum.sort_by(& &1.position)do %>
-      <div>
-        <h3>{cat.name}</h3>
-        <div style="margin-left: 1em;">
-          <%= for c <- cat.channels |> Enum.sort_by(& &1.position)do %>
-            <div>
-              <%= if length(c.channels) > 0 do %>
-                <style>
-                  #collapse-<%= c.id %>:not(:checked)+.threads {display: none;}
-                </style>
-              <% end %>
-              <span><.link patch={~p"/#{@guild.id}/#{c.id}"}>{c.name}</.link></span>
-              <span>{@counts[c.id]}</span>
-              <%= if length(c.channels) > 0 do %>
-                <input type="checkbox" id={"collapse-#{c.id}"} />
-                <div class="threads" style="margin-left: 1em;">
-                  <%= for t <- c.channels |> Enum.sort_by(& &1.position) do %>
-                    <div><.link patch={~p"/#{@guild.id}/#{t.id}"}>{t.name}</.link></div>
-                  <% end %>
-                </div>
-              <% end %>
-            </div>
-          <% end %>
+<style>
+  h1, h2, h3 {
+    margin: 0;
+  }
+  div {
+    gap: 0.5em;
+  }
+</style>
+<div style="display: flex; gap: 0.5em; margin: 0.5em;">
+  <div style="flex-shrink: 0; display: flex; flex-direction: column;">
+    <div><h1>{@guild.name}</h1></div>
+    <div style="display: flex; flex-direction: column; gap: 1em">
+      <%= for cat <- @categories |> Enum.sort_by(& &1.position)do %>
+        <div>
+          <h3>{cat.name}</h3>
+          <div style="margin-left: 0.5em;">
+            <%= for c <- cat.channels |> Enum.sort_by(& &1.position)do %>
+              <div>
+                <%= if length(c.channels) > 0 do %>
+                  <style>
+                    #collapse-<%= c.id %>:not(:checked)+.threads {display: none;}
+                  </style>
+                <% end %>
+                <span><.link patch={~p"/#{@guild.id}/#{c.id}"}>{c.name}</.link></span>
+                <span>{@counts[c.id]}</span>
+                <%= if length(c.channels) > 0 do %>
+                  <input type="checkbox" id={"collapse-#{c.id}"} />
+                  <div class="threads" style="margin-left: 1em;">
+                    <%= for t <- c.channels |> Enum.sort_by(& &1.position) do %>
+                      <div><.link patch={~p"/#{@guild.id}/#{t.id}"}>{t.name}</.link></div>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
         </div>
-      </div>
-    <% end %>
+      <% end %>
+    </div>
   </div>
   <div style="display: flex; flex-direction: column;">
     <h2>{@channel.name}</h2>
-    <div>{@channel.topic}</div>
-
-    <%= if length(@messages) > 0 do %>
+    <h3>{@channel.topic}</h3>
+    <div style="display: flex;">
+      <div style="flex-shrink: 0">
+        <div>
+          <%= for n <- 0..trunc(@count / @limit) do %>
+            <div>{n * @limit + 1} - {min(n * @limit + @limit, @count)}</div>
+          <% end %>
+        </div>
+      </div>
       <div style="flex: 1;">
+        <%= if @oldest != nil do %>
+          <div>oldest message: {@oldest.id}</div>
+        <% end %>
         <style>
           .avatar {
               height: 40px;
@@ -60,15 +79,6 @@
           <% end %>
         </table>
       </div>
-    <% end %>
-
-    <div>
-      <%= for n <- 0..trunc(@count / 500) do %>
-        <div>{n * 500 + 1} - {min(n * 500 + 500, @count)}</div>
-      <% end %>
     </div>
-    <%= if @oldest != nil do %>
-      <div>{@oldest.id}</div>
-    <% end %>
   </div>
 </div>

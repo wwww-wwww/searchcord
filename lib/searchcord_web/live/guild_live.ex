@@ -4,6 +4,8 @@ defmodule SearchcordWeb.GuildLive do
   alias Searchcord.{Guild, User, Message, Channel, Repo, Cache}
   import Ecto.Query
 
+  @limit 500
+
   def mount(%{"guild" => guild_id, "channel" => channel_id}, _session, socket) do
     guild = Repo.get(Guild, guild_id) |> Repo.preload(:channels)
 
@@ -23,6 +25,7 @@ defmodule SearchcordWeb.GuildLive do
       |> assign(guild: guild)
       |> assign(categories: categories)
       |> assign(counts: counts)
+      |> assign(limit: @limit)
 
     {:noreply, socket} = handle_params(%{"channel" => channel_id}, "", socket)
 
@@ -51,9 +54,9 @@ defmodule SearchcordWeb.GuildLive do
 
     channel_cache = Cache.get(guild.id) |> Map.get(:channels) |> Map.get(channel_id)
     count = channel_cache |> Map.get(:count)
-    oldest = channel_cache |> Map.get(:oldests)
+    oldest = channel_cache |> Map.get(:oldest)
 
-    offset_count = trunc(count / 500) * 500
+    offset_count = trunc(count / @limit) * @limit
 
     messages =
       Message
@@ -61,7 +64,7 @@ defmodule SearchcordWeb.GuildLive do
       |> order_by(asc: :id)
       |> preload([:author])
       |> offset(^offset_count)
-      |> limit(500)
+      |> limit(@limit)
       |> Repo.all()
 
     socket =

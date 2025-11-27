@@ -48,7 +48,18 @@ defmodule Searchcord do
   end
 
   def get_messages(guild_id, channel_id, locator, after_date) do
-    {:ok, messages} = api(fn -> Nostrum.Api.Channel.messages(channel_id, 100, locator) end)
+    messages =
+      case api(fn -> Nostrum.Api.Channel.messages(channel_id, 100, locator) end) do
+        {:ok, messages} ->
+          messages
+
+        {:error,
+         %Nostrum.Error.ApiError{
+           status_code: 403,
+           response: %{code: 50001, message: "Missing Access"}
+         }} ->
+          []
+      end
 
     users =
       messages
@@ -129,6 +140,11 @@ defmodule Searchcord do
       stickers: stickers
     }
     |> Repo.insert()
+  end
+
+  def download_all(after_date) do
+    Repo.all(Channel)
+    |> Enum.each(&download_all_messages(&1.guild_id, &1.id, after_date))
   end
 
   defp trunc_time(nil), do: nil

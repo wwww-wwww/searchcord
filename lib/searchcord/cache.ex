@@ -48,35 +48,28 @@ defmodule Searchcord.Cache do
     Agent.update(__MODULE__, fn state ->
       guild = Repo.get(Guild, guild_id)
 
-      new_guild =
-        case Map.get(state, guild_id) do
-          nil ->
-            channels =
-              guild
-              |> Repo.preload(:channels)
-              |> Map.get(:channels)
-              |> Enum.map(fn channel ->
-                count =
-                  Message
-                  |> where([m], m.channel_id == ^channel.id)
-                  |> Repo.aggregate(:count)
+      channels =
+        guild
+        |> Repo.preload(:channels)
+        |> Map.get(:channels)
+        |> Enum.map(fn channel ->
+          count =
+            Message
+            |> where([m], m.channel_id == ^channel.id)
+            |> Repo.aggregate(:count)
 
-                oldest =
-                  Message
-                  |> where([m], m.channel_id == ^channel.id)
-                  |> order_by(asc: :created_at)
-                  |> limit(1)
-                  |> Repo.one()
+          oldest =
+            Message
+            |> where([m], m.channel_id == ^channel.id)
+            |> order_by(asc: :created_at)
+            |> limit(1)
+            |> Repo.one()
 
-                {channel.id, %{count: count, oldest: oldest}}
-              end)
-              |> Map.new()
+          {channel.id, %{count: count, oldest: oldest}}
+        end)
+        |> Map.new()
 
-            %{guild: guild, channels: channels}
-
-          %{channels: channels} ->
-            %{guild: guild, channels: channels}
-        end
+      new_guild = %{guild: guild, channels: channels}
 
       Map.put(state, guild_id, new_guild)
     end)

@@ -190,9 +190,7 @@ defmodule SearchcordWeb.GuildLive do
 
   def handle_event("update-channels", _, socket) do
     if Searchcord.UpdateQueue.get().items |> length() == 0 do
-      Searchcord.UpdateQueue.push(fn ->
-        Searchcord.get_channels(socket.assigns.guild.id)
-      end)
+      Searchcord.UpdateQueue.push({&Searchcord.get_channels/1, [socket.assigns.guild.id]})
     end
 
     {:noreply, socket}

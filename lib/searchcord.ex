@@ -258,6 +258,8 @@ defmodule Searchcord do
       |> Ecto.Changeset.change(channel)
       |> Repo.insert_or_update()
     end)
+
+    Cache.update_guild(guild_id)
   end
 
   def update_channel_messages(channel_id) do
@@ -292,7 +294,6 @@ defmodule Searchcord do
     Repo.all(Guild)
     |> Enum.each(fn guild ->
       get_channels(guild.id)
-      Cache.update_guild(guild.id)
     end)
 
     Repo.all(Channel)

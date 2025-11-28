@@ -32,15 +32,12 @@ defmodule Searchcord.Repo.Migrations.Create do
       add :topic, :string
       add :nsfw, :boolean
 
+      add :parent_id, :bigint
       add :owner_id, references("users", column: :user_id, with: [guild_id: :guild_id]),
         type: :bigint
 
       add :created_at, :utc_datetime
       add :archived_at, :utc_datetime
-    end
-
-    alter table("channels") do
-      add :parent_id, references("channels"), type: :bigint
     end
 
     create table("messages") do
@@ -57,10 +54,7 @@ defmodule Searchcord.Repo.Migrations.Create do
       add :edited_at, :utc_datetime
 
       add :reactions, {:array, :text}
-    end
-
-    alter table("messages") do
-      add :reply_to_id, references("messages")
+      add :reply_to_id, :bigint
     end
   end
 end

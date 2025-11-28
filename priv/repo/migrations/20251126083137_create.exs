@@ -55,6 +55,12 @@ defmodule Searchcord.Repo.Migrations.Create do
       add :embeds, {:array, :text}
       add :created_at, :utc_datetime
       add :edited_at, :utc_datetime
+
+      add :reactions, {:array, :text}
+    end
+
+    alter table("messages") do
+      add :reply_to_id, references("messages")
     end
   end
 end

@@ -47,6 +47,8 @@ defmodule Searchcord do
     end)
   end
 
+  defp struct_json(s), do: Map.from_struct(s) |> Jason.encode!()
+
   def get_messages(guild_id, channel_id, locator, after_date) do
     messages =
       case api(fn -> Nostrum.Api.Channel.messages(channel_id, 100, locator) end) do
@@ -70,30 +72,48 @@ defmodule Searchcord do
       |> Enum.map(fn message ->
         case Repo.get(Message, message.id) do
           nil ->
+            reply_to_id =
+              case message.referenced_message do
+                nil -> nil
+                %{id: id} -> id
+              end
+
+            reactions =
+              case message.reactions do
+                nil -> []
+                reactions -> Enum.map(reactions, &struct_json/1)
+              end
+
             %Message{
               id: message.id,
               guild_id: guild_id,
               channel_id: channel_id,
               author_id: message.author.id,
               content: message.content,
-              attachments:
-                Enum.map(message.attachments, &(Map.from_struct(&1) |> Jason.encode!())),
-              embeds: Enum.map(message.embeds, &(Map.from_struct(&1) |> Jason.encode!())),
+              attachments: Enum.map(message.attachments, &struct_json/1),
+              embeds: Enum.map(message.embeds, &struct_json/1),
               created_at: trunc_time(message.timestamp),
-              edited_at: trunc_time(message.edited_timestamp)
+              edited_at: trunc_time(message.edited_timestamp),
+              reply_to_id: reply_to_id,
+              reactions: reactions
             }
             |> Repo.insert()
 
             1
 
           m ->
-            m
-            |> Ecto.Changeset.change(%{
+            reactions =
+              case message.reactions do
+                nil -> []
+                reactions -> Enum.map(reactions, &struct_json/1)
+              end
+
+            Ecto.Changeset.change(m, %{
               content: message.content,
-              attachments:
-                Enum.map(message.attachments, &(Map.from_struct(&1) |> Jason.encode!())),
-              embeds: Enum.map(message.embeds, &(Map.from_struct(&1) |> Jason.encode!())),
-              edited_at: trunc_time(message.edited_timestamp)
+              attachments: Enum.map(message.attachments, &struct_json/1),
+              embeds: Enum.map(message.embeds, &struct_json/1),
+              edited_at: trunc_time(message.edited_timestamp),
+              reactions: reactions,
             })
             |> Repo.update()
 

@@ -10,5 +10,10 @@ defmodule Searchcord.Message do
     field :embeds, {:array, :string}
     field :created_at, :utc_datetime
     field :edited_at, :utc_datetime
+
+    field :reactions, {:array, :string}
+
+    belongs_to :reply_to, Searchcord.Message
+    has_many :replies, Searchcord.Message, foreign_key: :reply_to_id
   end
 end

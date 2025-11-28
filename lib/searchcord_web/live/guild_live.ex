@@ -160,7 +160,9 @@ defmodule SearchcordWeb.GuildLive do
   end
 
   def handle_event("search", %{"query" => query}, socket) do
-    {:noreply, push_patch(socket, to: ~p"/#{socket.assigns.guild.id}/search/#{query}")}
+    if String.length(query) == 0,
+      do: {:noreply, socket},
+      else: {:noreply, push_patch(socket, to: ~p"/#{socket.assigns.guild.id}/search/#{query}")}
   end
 
   def handle_event("update-channels", _, socket) do

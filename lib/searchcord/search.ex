@@ -71,7 +71,7 @@ defmodule Searchcord.Search do
       count: count,
       results: results,
       duration_db: time_db - time_start,
-      duration_enum: time_enum - time_start
+      duration_enum: time_enum - time_db
     }
   end
 
@@ -119,7 +119,7 @@ defmodule Searchcord.Search do
       count: count,
       results: results,
       duration_db: time_db - time_start,
-      duration_enum: time_enum - time_start
+      duration_enum: time_enum - time_db
     }
   end
 end

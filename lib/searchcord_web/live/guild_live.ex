@@ -108,7 +108,7 @@ defmodule SearchcordWeb.GuildLive do
           |> order_by(asc: :id)
           |> offset(^offset)
           |> limit(@limit)
-          |> preload([:author])
+          |> preload([:author, reply_to: [:author]])
           |> Repo.all()
           |> Search.chunk_by(& &1.author_id)
 

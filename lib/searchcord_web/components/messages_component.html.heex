@@ -28,6 +28,21 @@
     .messages tr:target {
         background-color: yellow;
     }
+    .messages .reply_to {
+      font-size: 0.8em;
+    }
+    .messages .reply-connector {
+      position: absolute;
+      left: 9em;
+      top: 0.5em;
+      height: 1.75em;
+      width: 0.25em;
+      border-top: 1px solid gray;
+      border-bottom: 1px solid gray;
+      border-left: 1px solid gray;
+      box-sizing: border-box;
+      border-radius: 8px 0 0 8px;
+    }
   </style>
   <table class="message-chunks">
     <%= for c <- @messages do %>
@@ -46,6 +61,17 @@
           <div class="messages">
             <table>
               <%= for m <- c do %>
+                <%= if m.reply_to != nil do %>
+                  <tr style="position: relative;">
+                    <td>
+                      <div class="reply-connector"></div>
+                    </td>
+                    <td class="reply_to">
+                      <span>{m.reply_to.author.name}</span>
+                      <span>{m.reply_to.content}</span>
+                    </td>
+                  </tr>
+                <% end %>
                 <tr id={"message_#{m.id}"}>
                   <td>
                     <%= if channel != nil do %>
@@ -56,7 +82,9 @@
                       {Calendar.strftime(m.created_at, "%Y-%m-%d %I:%M:%S")}
                     <% end %>
                   </td>
-                  <td>{m.content}</td>
+                  <td>
+                    <div>{m.content}</div>
+                  </td>
                 </tr>
               <% end %>
             </table>

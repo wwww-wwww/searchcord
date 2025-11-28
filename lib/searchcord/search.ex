@@ -46,7 +46,7 @@ defmodule Searchcord.Search do
     results =
       query
       |> limit(500)
-      |> preload([:author])
+      |> preload([:author, reply_to: [:author]])
       |> Repo.all()
 
     time_db = :os.system_time(:millisecond)
@@ -94,7 +94,7 @@ defmodule Searchcord.Search do
     results =
       query
       |> limit(500)
-      |> preload([:author])
+      |> preload([:author, reply_to: [:author]])
       |> Repo.all()
 
     time_db = :os.system_time(:millisecond)

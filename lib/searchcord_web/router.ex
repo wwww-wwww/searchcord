@@ -19,6 +19,7 @@ defmodule SearchcordWeb.Router do
     live "/", HomeLive
     live "/:guild", GuildLive
     live "/:guild/search/:query", GuildLive
+    live "/:guild/textsearch/:textquery", GuildLive
     live "/:guild/message/:message", GuildLive
     live "/:guild/:channel", GuildLive
     live "/:guild/:channel/:offset", GuildLive

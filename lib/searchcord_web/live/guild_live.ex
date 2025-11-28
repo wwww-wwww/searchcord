@@ -35,6 +35,7 @@ defmodule SearchcordWeb.GuildLive do
           |> assign(channel: nil)
           |> assign(search: nil)
           |> assign(query: "")
+          |> assign(textquery: "")
 
         Phoenix.PubSub.subscribe(Searchcord.PubSub, "update_guild:#{guild.id}")
 
@@ -49,8 +50,25 @@ defmodule SearchcordWeb.GuildLive do
 
     socket =
       socket
+      |> assign(channel: nil)
       |> assign(search: search)
       |> assign(query: query)
+      |> assign(textquery: "")
+
+    {:noreply, socket}
+  end
+
+  def handle_params(%{"textquery" => query}, _uri, socket) do
+    guild = socket.assigns.guild
+
+    search = Search.search(guild.id, query)
+
+    socket =
+      socket
+      |> assign(channel: nil)
+      |> assign(search: search)
+      |> assign(query: "")
+      |> assign(textquery: query)
 
     {:noreply, socket}
   end
@@ -163,6 +181,13 @@ defmodule SearchcordWeb.GuildLive do
     if String.length(query) == 0,
       do: {:noreply, socket},
       else: {:noreply, push_patch(socket, to: ~p"/#{socket.assigns.guild.id}/search/#{query}")}
+  end
+
+  def handle_event("textsearch", %{"query" => query}, socket) do
+    if String.length(query) == 0,
+      do: {:noreply, socket},
+      else:
+        {:noreply, push_patch(socket, to: ~p"/#{socket.assigns.guild.id}/textsearch/#{query}")}
   end
 
   def handle_event("update-channels", _, socket) do

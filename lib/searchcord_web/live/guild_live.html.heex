@@ -48,32 +48,42 @@
       <% end %>
     </div>
   </div>
-  <%= if @channel == nil do %>
-    <div style="display: flex; flex-direction: column;">
-      <form id="search" phx-submit="search">
-        <input type="text" name="query" value={@query} />
+  <div style="display: flex; flex-direction: column;">
+    <div>
+      <style>
+        form {
+          display: inline-block;
+        }
+      </style>
+      <form id="textsearch" phx-submit="textsearch">
+        <input type="text" name="query" value={@textquery} />
         <button>Search</button>
       </form>
-      <%= if @search != nil do %>
-        <.live_component
-          module={Searchcord.SearchComponent}
-          id="search_component"
-          results={@search.results}
-          count={@search.count}
-          duration_db={@search.duration_db}
-          duration_enum={@search.duration_enum}
-        />
-      <% end %>
+      <form id="search" phx-submit="search">
+        <input type="text" name="query" value={@query} />
+        <button>Full Search</button>
+      </form>
     </div>
-  <% else %>
-    <.live_component
-      module={Searchcord.ChannelComponent}
-      id="channel_component"
-      channel={@channel.channel}
-      messages={@channel.messages}
-      count={@channel.count}
-      oldest={@channel.oldest}
-      limit={@limit}
-    />
-  <% end %>
+    <%= if @search != nil do %>
+      <.live_component
+        module={Searchcord.SearchComponent}
+        id="search_component"
+        results={@search.results}
+        count={@search.count}
+        duration_db={@search.duration_db}
+        duration_enum={@search.duration_enum}
+      />
+    <% end %>
+    <%= if @channel != nil do %>
+      <.live_component
+        module={Searchcord.ChannelComponent}
+        id="channel_component"
+        channel={@channel.channel}
+        messages={@channel.messages}
+        count={@channel.count}
+        oldest={@channel.oldest}
+        limit={@limit}
+      />
+    <% end %>
+  </div>
 </div>

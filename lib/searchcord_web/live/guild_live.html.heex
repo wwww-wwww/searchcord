@@ -51,7 +51,7 @@
   <%= if @channel == nil do %>
     <div style="display: flex; flex-direction: column;">
       <form id="search" phx-submit="search">
-        <input type="text" name="query" />
+        <input type="text" name="query" value={@query} />
         <button>Search</button>
       </form>
       <%= if @search != nil do %>
@@ -60,6 +60,8 @@
           id="search_component"
           results={@search.results}
           count={@search.count}
+          duration1={@search.duration1}
+          duration2={@search.duration2}
         />
       <% end %>
     </div>

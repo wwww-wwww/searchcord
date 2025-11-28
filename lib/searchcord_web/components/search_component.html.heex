@@ -1,5 +1,5 @@
 <div>
-  <div>{@count} results, showing {min(@count, 500)}</div>
+  <div>{@count} results, showing {min(@count, 500)} (db: {@duration1} ms, enum: {@duration2} ms)</div>
   <div>
     <%= for {{channel, chunks}, n} <- @results |> Enum.with_index do %>
       <h3>{channel.name}</h3>

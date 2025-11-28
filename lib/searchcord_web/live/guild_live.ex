@@ -28,6 +28,7 @@ defmodule SearchcordWeb.GuildLive do
       |> assign(limit: @limit)
       |> assign(channel: nil)
       |> assign(search: nil)
+      |> assign(query: "")
 
     Phoenix.PubSub.subscribe(Searchcord.PubSub, "update_guild:#{guild.id}")
 
@@ -57,13 +58,15 @@ defmodule SearchcordWeb.GuildLive do
     |> Enum.filter(&(length(&1) > 0))
   end
 
-  def handle_params(%{"query" => query}, _uri, socket) do
+  def handle_params(%{"query" => query_text}, _uri, socket) do
     guild = socket.assigns.guild
+
+    start = :os.system_time(:millisecond)
 
     query =
       Message
       |> where([m], m.guild_id == ^guild.id)
-      |> where([m], ilike(m.content, ^"%#{query}%"))
+      |> where([m], ilike(m.content, ^"%#{query_text}%"))
       |> order_by(desc: :id)
 
     count = Repo.aggregate(query, :count)
@@ -78,6 +81,11 @@ defmodule SearchcordWeb.GuildLive do
       |> limit(500)
       |> preload([:author])
       |> Repo.all()
+
+    duration1 = :os.system_time(:millisecond) - start
+
+    results =
+      results
       |> chunk_by(& &1.channel_id)
       |> Enum.map(fn e ->
         channel_id = e |> Enum.at(0) |> Map.get(:channel_id)
@@ -90,11 +98,14 @@ defmodule SearchcordWeb.GuildLive do
         {channel, chunk_by(e, & &1.author_id)}
       end)
 
-    search = %{count: count, results: results}
+    duration2 = :os.system_time(:millisecond) - start - duration1
+
+    search = %{count: count, results: results, duration1: duration1, duration2: duration2}
 
     socket =
       socket
       |> assign(search: search)
+      |> assign(query: query_text)
 
     {:noreply, socket}
   end
